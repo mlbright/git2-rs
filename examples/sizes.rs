@@ -25,28 +25,26 @@ fn run(args: &Args) -> Result<(), Error> {
             Err(e) => return Err(e),
         };
         let commit_object = repo.find_commit(commit_id).unwrap();
-        print_commit(&commit_object);
+        // print_commit(&commit_object);
         let tid = commit_object.tree_id();
         let tree = repo.find_tree(tid).unwrap();
         tree.walk(TreeWalkMode::PreOrder, |_, entry| {
-            match entry.name() {
-                Some(s) => println!("{}", s),
-                None => {}
-            }
-            match entry.kind() {
+            let name = match entry.name() {
+                Some(s) => s,
+                None => "",
+            };
+            let size = match entry.kind() {
                 Some(k) => match k {
                     ObjectType::Blob => {
                         let id = entry.id();
                         let blob = repo.find_blob(id).unwrap();
-                        println!("{}", blob.size());
-                        if blob.size() > 3244 {
-                            return TreeWalkResult::Ok;
-                        }
+                        blob.size()
                     }
-                    _ => {}
+                    _ => 0,
                 },
-                None => {}
-            }
+                None => 0,
+            };
+            println!("{} {}", size, name);
             TreeWalkResult::Ok
         })
         .unwrap();
@@ -55,6 +53,7 @@ fn run(args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn print_commit(commit: &Commit) {
     println!("commit {}", commit.id());
 
