@@ -17,7 +17,7 @@ fn run(args: &Args) -> Result<(), Error> {
     let path = args.flag_git_dir.as_ref().map(|s| &s[..]).unwrap_or(".");
     let repo = Repository::open(path)?;
     let mut revwalk = repo.revwalk()?;
-    revwalk.set_sorting(git2::Sort::TIME)?;
+    // revwalk.set_sorting(git2::Sort::TIME)?;
     revwalk.push_head()?;
     for commit in revwalk {
         let commit_id = match commit {
