@@ -6,19 +6,34 @@ use git2::{ObjectType, TreeWalkMode, TreeWalkResult};
 use std::str;
 use structopt::StructOpt;
 
+const MAX_OBJECT_SIZE: usize = 18672;
+
 #[derive(StructOpt)]
 struct Args {
     #[structopt(name = "dir", long = "git-dir")]
     /// alternative git directory to use
     flag_git_dir: Option<String>,
+    #[structopt(name = "oldrev")]
+    oldrev: String,
+    #[structopt(name = "newrev")]
+    newrev: String,
+    #[structopt(name = "refname")]
+    refname: String,
 }
 
 fn run(args: &Args) -> Result<(), Error> {
     let path = args.flag_git_dir.as_ref().map(|s| &s[..]).unwrap_or(".");
     let repo = Repository::open(path)?;
     let mut revwalk = repo.revwalk()?;
-    // revwalk.set_sorting(git2::Sort::TIME)?;
-    revwalk.push_head()?;
+    let revspec = repo.revparse(&format!("{}..{}", &args.newrev, &args.oldrev))?;
+    if revspec.mode().contains(git2::RevparseMode::SINGLE) {
+        revwalk.push(revspec.from().unwrap().id())?;
+    } else {
+        let from = revspec.from().unwrap().id();
+        let to = revspec.to().unwrap().id();
+        revwalk.push_range(&format!("{}..{}", from, to))?;
+    }
+
     for commit in revwalk {
         let commit_id = match commit {
             Ok(c) => c,
@@ -31,7 +46,7 @@ fn run(args: &Args) -> Result<(), Error> {
         tree.walk(TreeWalkMode::PreOrder, |_, entry| {
             let name = match entry.name() {
                 Some(s) => s,
-                None => "",
+                None => "n/a",
             };
             let size = match entry.kind() {
                 Some(k) => match k {
@@ -45,6 +60,12 @@ fn run(args: &Args) -> Result<(), Error> {
                 None => 0,
             };
             println!("{} {}", size, name);
+            if size > MAX_OBJECT_SIZE {
+                println!(
+                    "{} in {} has size {}, bigger than {}",
+                    name, args.refname, size, MAX_OBJECT_SIZE
+                );
+            }
             TreeWalkResult::Ok
         })
         .unwrap();
@@ -94,8 +115,6 @@ fn print_time(time: &Time, prefix: &str) {
         minutes
     );
 }
-
-impl Args {}
 
 fn main() {
     let args = Args::from_args();
