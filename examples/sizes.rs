@@ -7,6 +7,7 @@ use std::str;
 use structopt::StructOpt;
 
 const MAX_OBJECT_SIZE: usize = 18672;
+static ZERO_COMMIT: &str = "0000000000000000000000000000000000000000";
 
 #[derive(StructOpt)]
 struct Args {
@@ -22,9 +23,14 @@ struct Args {
 }
 
 fn run(args: &Args) -> Result<(), Error> {
+    if args.newrev == ZERO_COMMIT {
+        return Ok(());
+    }
+
     let path = args.flag_git_dir.as_ref().map(|s| &s[..]).unwrap_or(".");
     let repo = Repository::open(path)?;
     let mut revwalk = repo.revwalk()?;
+
     let revspec = repo.revparse(&format!("{}..{}", &args.newrev, &args.oldrev))?;
     if revspec.mode().contains(git2::RevparseMode::SINGLE) {
         revwalk.push(revspec.from().unwrap().id())?;
