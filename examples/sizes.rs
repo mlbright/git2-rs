@@ -31,7 +31,12 @@ fn run(args: &Args) -> Result<(), Error> {
     let repo = Repository::open(path)?;
     let mut revwalk = repo.revwalk()?;
 
-    let revspec = repo.revparse(&format!("{}..{}", &args.newrev, &args.oldrev))?;
+    let revspec = if args.oldrev == ZERO_COMMIT {
+        repo.revparse(&args.newrev)?
+    } else {
+        repo.revparse(&format!("{}..{}", &args.newrev, &args.oldrev))?
+    };
+
     if revspec.mode().contains(git2::RevparseMode::SINGLE) {
         revwalk.push(revspec.from().unwrap().id())?;
     } else {
