@@ -61,28 +61,30 @@ fn validate(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
         let tid = commit_object.tree_id();
         let tree = repo.find_tree(tid).unwrap();
         tree.walk(TreeWalkMode::PreOrder, |_, entry| {
-            let name = match entry.name() {
-                Some(s) => s,
-                None => "n/a",
-            };
-            let size = match entry.kind() {
+            match entry.kind() {
                 Some(k) => match k {
                     ObjectType::Blob => {
+                        let name = match entry.name() {
+                            Some(s) => s,
+                            None => "n/a",
+                        };
                         let id = entry.id();
                         let blob = repo.find_blob(id).unwrap();
-                        blob.size()
+                        if blob.size() > max_object_size {
+                            println!(
+                                "{} in {} has size {}, bigger than {}",
+                                name,
+                                args.refname,
+                                blob.size(),
+                                max_object_size
+                            );
+                            std::process::exit(1);
+                        }
                     }
-                    _ => 0,
+                    _ => {}
                 },
-                None => 0,
+                None => {}
             };
-            if size > max_object_size {
-                println!(
-                    "{} in {} has size {}, bigger than {}",
-                    name, args.refname, size, max_object_size
-                );
-                std::process::exit(1);
-            }
             TreeWalkResult::Ok
         })
         .unwrap();
@@ -95,6 +97,6 @@ fn main() {
     let args = Args::from_args();
     match validate(&args) {
         Ok(()) => {}
-        Err(e) => println!("error: {}", e),
+        Err(e) => eprintln!("error: {}", e),
     }
 }
